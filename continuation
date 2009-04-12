@@ -4,13 +4,6 @@
 # version 0.01
 # * initial version
 
-dotest(){
-    RET=0
-    $(cat ../conf/command) 2>&1 || RET=$?
-    echo
-    echo "Exited with return status $RET"
-}
-
 main() {
     if [ -f tmp/pid ]; then
         if kill -0 $(cat tmp/pid); then
@@ -25,8 +18,8 @@ main() {
         rm tmp/die
     fi
     echo $$ > tmp/pid
-    if [ ! -e conf/repo -o ! -e conf/command -o ! -e conf/wait -o ! -e conf/tail -o ! -e conf/mail -o ! -e conf/base ]; then
-        echo "Missing stuff in conf (need repo, command, mail, tail, base, and wait), exiting" >/dev/stderr
+    if [ ! -e conf/repo -o ! -e conf/command -o ! -e conf/wait -o ! -e conf/tail -o ! -e conf/mail -o ! -e conf/base -o ! -e conf/timeout ]; then
+        echo "Missing stuff in conf (need repo, command, timeout, mail, tail, base, and wait), exiting" >/dev/stderr
         rm tmp/pid
         exit 1
     fi
@@ -82,10 +75,11 @@ main() {
             REV=$REV-$NUM
             echo "$(date) $REV building.." >> ../logs/results
             echo "Starting at $(date)" > ../logs/$REV.log
-            dotest | tee -a ../logs/$REV.log >/dev/null
+            RET=0
+            { timeout $(cat ../conf/timeout) $(cat ../conf/command) 2>&1 || RET=$?; echo; echo "Exited with return status $RET"; } | tee -a ../logs/$REV.log >/dev/null
             echo "Finished at $(date)" >> ../logs/$REV.log
-            RETVAL=$(tail -2 ../logs/$REV.log | head -1 | cut -d' ' -f 5)
             sed -i '$ d' ../logs/results
+            RETVAL=$(tail -2 ../logs/$REV.log | head -1 | cut -d' ' -f 5)
             if [ "$RETVAL" = "0" ]; then
                 echo "$(date) $REV suceeded" >> ../logs/results
             else

@@ -84,7 +84,7 @@ main() {
                 echo "$(date) $REV suceeded" >> ../logs/results
             else
                 echo "$(date) $REV failed" >> ../logs/results
-                { echo "From $(cat ../conf/base)/$REV.log :";  tail -n $(cat ../conf/tail) ../logs/$REV.log; } | mail -s "$(basename $(cat ../conf/repo | sed 's/\.git$//')) failed build $(echo $REV | sed -r 's/^(......).*-(.+)/\1-\2/')" $(cat ../conf/mail)
+                { echo "From $(cat ../conf/base)/$REV.log :"; echo; tail -n $(cat ../conf/tail) ../logs/$REV.log; } | mail -s "$(basename $(cat ../conf/repo | sed 's/\.git$//')) failed build $(echo $REV | sed -r 's/^(......).*-(.+)/\1-\2/')" $(cat ../conf/mail)
             fi
             cd ..
         fi

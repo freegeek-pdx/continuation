@@ -74,7 +74,7 @@ main() {
             while [ -f ../logs/$REV-$NUM.log ]; do
                 NUM=$(( $NUM + 1 ))
             done
-            REV=$REV-$TMP
+            REV=$REV-$NUM
             echo "$(date) $REV building.." >> ../logs/results
             echo "Starting at $(date)" > ../logs/$REV.log
             dotest | tee -a ../logs/$REV.log >/dev/null

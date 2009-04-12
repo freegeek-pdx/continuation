@@ -1,0 +1,138 @@
+#!/bin/sh
+
+dotest(){
+    RET=0
+    $(cat ../conf/command) 2>&1 || RET=$?
+    echo
+    echo "Exited with return status $RET"
+}
+
+main() {
+    if [ -f tmp/pid ]; then
+        if kill -0 $(cat tmp/pid); then
+            echo "Already running" >&2
+            exit 1
+        else
+            rm tmp/pid
+            echo "Removing stale PID file"
+        fi
+    fi
+    if [ -f tmp/die ]; then
+        rm tmp/die
+    fi
+    echo $$ > tmp/pid
+    if [ ! -e conf/repo -o ! -e conf/command -o ! -e conf/wait ]; then
+        echo "Missing stuff in conf (need repo, command, and wait), exiting" >/dev/stderr
+        rm tmp/pid
+        exit 1
+    fi
+    ORIG_TRIGGER=0
+    if [ ! -d work/.git ]; then
+        rm -fr work
+        git clone $(cat conf/repo) work
+        ORIG_TRIGGER=1
+    fi
+    waiter=0
+    while :; do
+        echo "Running loop"
+        waiter=$(( $waiter + 1 ))
+        if [ -e tmp/die -a "$ORIG_TRIGGER" != "1" ]; then
+            echo "Bye"
+            rm tmp/die
+            break
+        fi
+        if [ "$(( $(cat conf/wait) / 5 ))" = "$waiter" ]; then
+            waiter=0
+            echo "Checking repository"
+        else
+            echo "meh, not time yet, going back to sleep"
+        fi
+        if [ "$waiter" = "0" ]; then
+        TRIGGERED=0
+        if [ "$ORIG_TRIGGERED" = "1" ]; then
+            TRIGGERED=1
+            ORIG_TRIGGERED=0
+        fi
+        if [ -f tmp/trigger ]; then
+            TRIGGERED=1
+            rm tmp/trigger
+        fi
+        if [ "$TRIGGERED" != "1" ]; then
+            cd work
+            ORIG=$(git show | head -1 | awk '{print $2}')
+            git pull
+            NEW=$(git show | head -1 | awk '{print $2}')
+            if [ "$NEW" != "$ORIG" ]; then
+                TRIGGERED=1
+            fi
+            cd ..
+        fi
+        if [ "$TRIGGERED" = "1" ]; then
+            cd work
+            REV=$(git show | head -1 | awk '{print $2}')
+            echo "$(date) $REV building.." >> ../logs/results
+            echo "Starting at $(date)" > ../logs/$REV.log
+            dotest | tee -a ../logs/$REV.log >/dev/null
+            echo "Finished at $(date)" >> ../logs/$REV.log
+            RETVAL=$(tail -2 ../logs/$REV.log | head -1 | cut -d' ' -f 5)
+            sed -i '$ d' ../logs/results
+            if [ "$RETVAL" = "0" ]; then
+                echo "$(date) $REV suceeded" >> ../logs/results
+            else
+                echo "$(date) $REV failed" >> ../logs/results
+            fi
+            cd ..
+        fi
+        fi
+        echo "Done, sleeping"
+        sleep 5
+    done
+    rm tmp/pid
+}
+
+cd `dirname $(readlink -f $0)`
+mkdir -p logs tmp conf work
+case "$1" in
+    start)
+        main
+        ;;
+    stop)
+        touch tmp/die
+        ;;
+    kill)
+        kill $(cat tmp/pid)
+        for i in `seq 5`; do
+            kill -s 0 $(cat tmp/pid) || break
+            sleep 1
+        done
+        kill -s 9 $(cat tmp/pid)
+        rm -f tmp/die
+        rm -f tmp/pid
+        ;;
+    version)
+        echo "Continuation version 0.01"
+        echo "Copyright (c) 2009 Ryan Niebur"
+        echo "Licensed under the Do What The Fuck You Want To Public License Version 2, see the output of '$(basename $0) license'"
+        ;;
+    license)
+        cat <<EOF
+           DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE
+                   Version 2, December 2004
+
+Copyright (C) 2004 Sam Hocevar
+ 14 rue de Plaisance, 75014 Paris, France
+Everyone is permitted to copy and distribute verbatim or modified
+copies of this license document, and changing it is allowed as long
+as the name is changed.
+
+           DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE
+  TERMS AND CONDITIONS FOR COPYING, DISTRIBUTION AND MODIFICATION
+
+ 0. You just DO WHAT THE FUCK YOU WANT TO.
+EOF
+        ;;
+    *)
+        echo "Unknown command $1" >/dev/stderr
+        exit 1
+        ;;
+esac

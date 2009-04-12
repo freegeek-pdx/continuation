@@ -76,7 +76,7 @@ main() {
             echo "$(date) $REV building.." >> ../logs/results
             echo "Starting at $(date)" > ../logs/$REV.log
             RET=0
-            { timeout $(cat ../conf/timeout) $(cat ../conf/command) 2>&1 || RET=$?; echo; echo "Exited with return status $RET"; } | tee -a ../logs/$REV.log >/dev/null
+            { timeout $(cat ../conf/timeout) $(cat ../conf/command) 2>&1 || RET=$?; echo; echo "Exited with return status $RET"; } >> ../logs/$REV.log
             echo "Finished at $(date)" >> ../logs/$REV.log
             sed -i '$ d' ../logs/results
             RETVAL=$(tail -2 ../logs/$REV.log | head -1 | cut -d' ' -f 5)

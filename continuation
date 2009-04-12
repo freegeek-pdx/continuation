@@ -21,8 +21,8 @@ main() {
         rm tmp/die
     fi
     echo $$ > tmp/pid
-    if [ ! -e conf/repo -o ! -e conf/command -o ! -e conf/wait ]; then
-        echo "Missing stuff in conf (need repo, command, and wait), exiting" >/dev/stderr
+    if [ ! -e conf/repo -o ! -e conf/command -o ! -e conf/wait -o ! -e conf/tail -o ! -e conf/mail -o ! -e conf/base ]; then
+        echo "Missing stuff in conf (need repo, command, mail, tail, base, and wait), exiting" >/dev/stderr
         rm tmp/pid
         exit 1
     fi
@@ -85,6 +85,7 @@ main() {
                 echo "$(date) $REV suceeded" >> ../logs/results
             else
                 echo "$(date) $REV failed" >> ../logs/results
+                { echo "From $(cat ../conf/base)/$REV.log :";  tail -n $(cat ../conf/tail) ../logs/$REV.log; } | mail -s "$(basename $(cat ../conf/repo | sed 's/\.git$//')) failed build $(echo $REV | sed -r 's/^(......).*-(.+)/\1-\2/')" $(cat ../conf/mail)
             fi
             cd ..
         fi
@@ -114,6 +115,15 @@ case "$1" in
         rm -f tmp/die
         rm -f tmp/pid
         ;;
+    restart)
+        $0 stop
+        for i in `seq 5`; do
+            [ -f tmp/pid ] || break
+            sleep 1
+        done
+        $0 kill
+        $0 start
+        ;;
     trigger)
         touch tmp/trigger
         ;;
@@ -140,7 +150,7 @@ as the name is changed.
 EOF
         ;;
     help)
-        echo "Valid commands: start, stop, kill, trigger, version, license, help"
+        echo "Valid commands: start, restart, stop, kill, trigger, version, license, help"
         ;;
     *)
         echo "Unknown command $1 ... try help" >/dev/stderr

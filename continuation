@@ -139,8 +139,11 @@ as the name is changed.
  0. You just DO WHAT THE FUCK YOU WANT TO.
 EOF
         ;;
+    help)
+        echo "Valid commands: start, stop, kill, trigger, version, license, help"
+        ;;
     *)
-        echo "Unknown command $1" >/dev/stderr
+        echo "Unknown command $1 ... try help" >/dev/stderr
         exit 1
         ;;
 esac

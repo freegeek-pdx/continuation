@@ -1,5 +1,9 @@
 #!/bin/sh
 
+# TODO:
+# don't cc on -1+ builds
+# on startup clean up old building entries in the results log, saying "unknown" or "died" or something
+
 # Changelog:
 # version 0.01
 # * initial version

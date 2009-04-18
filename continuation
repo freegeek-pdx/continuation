@@ -8,6 +8,13 @@
 # Changelog:
 # version 0.01
 # * initial version
+# version 0.02~unreleased
+# * support timeouts
+# * support setup commands
+# * add a simple way to checkout the repository, set it up, and use
+#   the continuation-config directory inside of it for conf
+# * automatic forking into the background
+# * CC the last committer
 
 main() {
     if [ -z "$INTERNAL_CONTINUATION" ]; then

@@ -38,6 +38,11 @@ main() {
     if [ ! -d work/.git ]; then
         rm -fr work
         git clone $(cat conf/repo) work
+        if [ -f conf/setup ]; then
+            cd work
+            . ../conf/setup
+            cd ..
+        fi
         ORIG_TRIGGER=1
     fi
     waiter=0
@@ -157,6 +162,11 @@ case "$1" in
                 rmdir conf
             fi
             ln -s work/continuation-config conf
+            if [ -f conf/setup ]; then
+                cd work
+                . ../conf/setup
+                cd ..
+            fi
             echo "Sucessful"
         else
             echo "that repository doesn't have a continuation-config directory...please manually configure continuation"

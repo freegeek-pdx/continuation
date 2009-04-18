@@ -144,7 +144,13 @@ case "$1" in
         git clone $REPO work
         touch tmp/trigger
         if test -d work/continuation-config; then
-            ln -sf work/continuation-config conf
+            if [ -f conf ]; then
+                rm conf
+            fi
+            if [ -d conf ]; then
+                rmdir conf
+            fi
+            ln -s work/continuation-config conf
             echo "Sucessful"
         else
             echo "that repository doesn't have a continuation-config directory...please manually configure continuation"

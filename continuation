@@ -136,7 +136,7 @@ case "$1" in
         echo "Licensed under the Do What The Fuck You Want To Public License Version 2, see the output of '$(basename $0) license'"
         ;;
     checkout)
-        if [ -d work/.git ]; then
+        if ! rmdir work; then
             echo "work already exists.."
             exit 1
         fi

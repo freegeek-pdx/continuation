@@ -8,7 +8,7 @@
 # Changelog:
 # version 0.01
 # * initial version
-# version 0.02~unreleased
+# version 0.02
 # * support timeouts
 # * support setup commands
 # * add a simple way to checkout the repository, set it up, and use
@@ -150,7 +150,7 @@ case "$1" in
         touch tmp/trigger
         ;;
     version)
-        echo "Continuation version 0.01"
+        echo "Continuation version 0.02"
         echo "Copyright (c) 2009 Ryan Niebur <ryanryan52@gmail.com>"
         echo "Licensed under the Do What The Fuck You Want To Public License Version 2, see the output of '$(basename $0) license'"
         ;;

@@ -91,7 +91,7 @@ main() {
         if [ "$TRIGGERED" = "1" ]; then
             cd work
             REV=$(git show | head -1 | awk '{print $2}')
-            NUM=0
+            NUM=1
             while [ -f ../logs/$REV-$NUM.log ]; do
                 NUM=$(( $NUM + 1 ))
             done

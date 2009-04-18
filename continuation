@@ -9,6 +9,7 @@
 # * initial version
 
 main() {
+    if [ -z "$INTERNAL_CONTINUATION" ]; then
     if [ -f tmp/pid ]; then
         if kill -0 $(cat tmp/pid); then
             echo "Already running" >&2
@@ -21,13 +22,16 @@ main() {
     if [ -f tmp/die ]; then
         rm tmp/die
     fi
-    echo $$ > tmp/pid
     if [ ! -e conf/repo -o ! -e conf/command -o ! -e conf/wait -o ! -e conf/tail -o ! -e conf/mail -o ! -e conf/base -o ! -e conf/timeout ]; then
         echo "Missing stuff in conf (need repo, command, timeout, mail, tail, base, and wait), exiting" >/dev/stderr
         rm tmp/pid
         exit 1
     fi
+    env INTERNAL_CONTINUATION=YEP nohup $(readlink -f $0) start &
+    exit 0
+    fi
     exec >>logs/mainlog 2>>logs/mainlog </dev/null
+    echo $$ > tmp/pid
     ORIG_TRIGGER=0
     if [ ! -d work/.git ]; then
         rm -fr work

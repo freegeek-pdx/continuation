@@ -155,11 +155,15 @@ case "$1" in
         echo "Licensed under the Do What The Fuck You Want To Public License Version 2, see the output of '$(basename $0) license'"
         ;;
     checkout)
+        REPO="$2"
+        if [ -z "$REPO" ]; then
+            echo "Usage: $(basename $0) checkout REPO"
+            exit 1
+        fi
         if ! rmdir work; then
             echo "work already exists.."
             exit 1
         fi
-        REPO="$2"
         git clone $REPO work
         touch tmp/trigger
         if test -d work/continuation-config; then
@@ -199,7 +203,7 @@ as the name is changed.
 EOF
         ;;
     help)
-        echo "Valid commands: start, restart, stop, kill, trigger, version, license, help"
+        echo "Valid commands: start, restart, stop, kill, trigger, version, license, help, checkout"
         ;;
     *)
         echo "Unknown command $1 ... try help" >/dev/stderr

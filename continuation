@@ -1,7 +1,10 @@
 #!/bin/sh
 
 # TODO:
-# 
+# * wrt CCing, committer vs author
+# * add defaults for tail and wait, making them optional, and make
+#   timeout optional (defaulting to no timeout)
+# * add documentation
 
 # Changelog:
 # version 0.01

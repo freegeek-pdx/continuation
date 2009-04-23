@@ -2,7 +2,6 @@
 
 # TODO:
 # * wrt CCing, committer vs author
-# * add defaults for tail and wait, making them optional
 # * add documentation
 
 # Changelog:
@@ -22,6 +21,7 @@
 #   replacing them with "unknown" states
 # * on triggered builds (well, most of them), don't CC the author
 # * make the timeout option optional, defaulting to no timeout
+# * make the tail and wait options optional, with reasonable defaults
 
 migrate(){
     if [ -d conf -a ! -f continuation.yaml ]; then
@@ -86,7 +86,7 @@ main() {
         rm tmp/die
     fi
     migrate
-    for i in repo command mail tail base wait; do
+    for i in repo command mail base; do
         if [ -z "$(get_from_config $i)" ]; then
             echo "ERROR: Required config file setting '$i' is missing."
             exit 1
@@ -125,7 +125,11 @@ main() {
             rm tmp/die
             break
         fi
-        if [ "$(( $(get_from_config wait) / 5 ))" = "$waiter" ]; then
+        WAIT_TIME=30
+        if [ -n "$(get_from_config wait)" ]; then
+            WAIT_TIME="$(get_from_config wait)"
+        fi
+        if [ "$(( $WAIT_TIME / 5 ))" = "$waiter" ]; then
             waiter=0
             echo "Checking repository"
         else
@@ -183,7 +187,11 @@ main() {
                 else
                     CC_OPTS=""
                 fi
-                { echo "From $(get_from_config base ..)/$REV.log :"; echo; tail -n $(get_from_config tail ..) ../logs/$REV.log; } | mail -s "$(basename $(get_from_config repo .. | sed 's/\.git$//')) failed build $(echo $REV | sed -r 's/^(......).*-(.+)/\1-\2/')" $CC_OPTS $(get_from_config mail ..)
+                TAIL_LENGTH=50
+                if [ -n "$(get_from_config tail ..)" ]; then
+                    TAIL_LENGTH="$(get_from_config tail ..)"
+                fi
+                { echo "From $(get_from_config base ..)/$REV.log :"; echo; tail -n $TAIL_LENGTH ../logs/$REV.log; } | mail -s "$(basename $(get_from_config repo .. | sed 's/\.git$//')) failed build $(echo $REV | sed -r 's/^(......).*-(.+)/\1-\2/')" $CC_OPTS $(get_from_config mail ..)
             fi
             cd ..
         fi

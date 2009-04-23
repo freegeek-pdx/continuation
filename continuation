@@ -2,7 +2,6 @@
 
 # TODO:
 # don't cc on -1+ builds
-# on startup clean up old building entries in the results log, saying "unknown" or "died" or something
 
 # Changelog:
 # version 0.01
@@ -17,6 +16,8 @@
 # version 0.03
 # * use perl and YAML for the config file instead of a directory with
 #   a bunch of files in it (backwards compatibility is kept)
+# * automatically clean up old "building.." states in the log,
+#   replacing them with "unknown" states
 
 migrate(){
     if [ -d conf -a ! -f continuation.yaml ]; then
@@ -109,6 +110,9 @@ main() {
         ORIG_TRIGGER=1
     fi
     waiter=0
+    if [ -f logs/results ]; then
+        sed -i 's/building..$/unknown/' logs/results
+    fi
     while :; do
         echo "Running loop"
         waiter=$(( $waiter + 1 ))

@@ -15,6 +15,57 @@
 #   the continuation-config directory inside of it for conf
 # * automatic forking into the background
 # * CC the last committer
+# version 0.03
+# * use perl and YAML for the config file instead of a directory with
+#   a bunch of files in it (backwards compatibility is kept)
+
+migrate(){
+    if [ -d conf -a ! -f continuation.yaml ]; then
+        if [ -f work/continuation.yaml ]; then
+            ln -s work/continuation.yaml
+        else
+            DEST=$(pwd)
+            cd conf
+            for i in *; do
+                if [ "$(cat $i | wc -l)" != "1" ]; then
+                    echo "$i: "
+                    cat $i | sed 's/^/ - /'
+                else
+                    echo "$i: $(cat $i)"
+                fi
+            done > $DEST/continuation.yaml
+            cd ..
+        fi
+        mail -s "$(basename $(get_from_config repo .. | sed 's/\.git$//')) continuation config migrated" $(get_from_config mail) <<EOF
+The configuration files for the $(basename $(get_from_config repo .. | sed 's/\.git$//')) project have been migrated to
+the new format. If you are using the old format symlinked into your
+git repository, then it will no longer be updated from the git
+repository. It will continue working with your current configuration,
+and you will be able to generate this file again.
+
+Here is the new config file (put it in continuation.yaml):
+$(cat continuation.yaml)
+EOF
+        echo "Migrated configuration to the new format (continuation.yaml) sucessfully, and emailed $(get_from_config mail)"
+    fi
+    if [ -d conf -a -f continuation.yaml ]; then
+        rm -fr conf
+    fi
+    if [ ! -f continuation.yaml ]; then
+        echo "ERROR: There is no continuation.yaml, and no (deprecated) conf directory to generate one from, exiting"
+        exit 1
+    fi
+}
+
+get_from_config(){
+    migrate
+    if [ -n "$2" ]; then
+        DIR="$2/"
+    else
+        DIR="./"
+    fi
+    echo ${DIR}continuation.yaml | perl -Mstrict -MYAML -e 'my ($t, @d); push @d, $t while(defined ($t = <STDIN>)); $t = join("\n", @d); my ($hashref, undef, undef) = Load($t); print (ref(%{$hashref}->{$ARGV[0]}) eq "ARRAY" ? join("\n", @{%{$hashref}->{$ARGV[0]}}) : %{$hashref}->{$ARGV[0]}) . "\n";' "$1"
+}
 
 main() {
     if [ -z "$INTERNAL_CONTINUATION" ]; then
@@ -30,11 +81,13 @@ main() {
     if [ -f tmp/die ]; then
         rm tmp/die
     fi
-    if [ ! -e conf/repo -o ! -e conf/command -o ! -e conf/wait -o ! -e conf/tail -o ! -e conf/mail -o ! -e conf/base -o ! -e conf/timeout ]; then
-        echo "Missing stuff in conf (need repo, command, timeout, mail, tail, base, and wait), exiting" >/dev/stderr
-        rm tmp/pid
-        exit 1
-    fi
+    migrate
+    for i in repo command timeout mail tail base wait; do
+        if [ -z "$(get_from_config $i)" ]; then
+            echo "ERROR: Required config file setting '$i' is missing."
+            exit 1
+        fi
+    done
     env INTERNAL_CONTINUATION=YEP nohup $(readlink -f $0) start 2>/dev/null &
     while [ ! -f tmp/pid ]; do sleep 0.25; done
     rm nohup.out
@@ -45,10 +98,13 @@ main() {
     ORIG_TRIGGER=0
     if [ ! -d work/.git ]; then
         rm -fr work
-        git clone $(cat conf/repo) work
-        if [ -f conf/setup ]; then
+        git clone $(get_from_config repo) work
+        if [ -n "$(get_from_config setup)" ]; then
+            F=$(mktemp)
+            get_from_config setup > $F
             cd work
-            . ../conf/setup
+            . $F
+            rm $F
             cd ..
         fi
         ORIG_TRIGGER=1
@@ -62,7 +118,7 @@ main() {
             rm tmp/die
             break
         fi
-        if [ "$(( $(cat conf/wait) / 5 ))" = "$waiter" ]; then
+        if [ "$(( $(get_from_config wait) / 5 ))" = "$waiter" ]; then
             waiter=0
             echo "Checking repository"
         else
@@ -99,7 +155,7 @@ main() {
             echo "$(date) $REV building.." >> ../logs/results
             echo "Starting at $(date)" > ../logs/$REV.log
             RET=0
-            { timeout $(cat ../conf/timeout) $(cat ../conf/command) 2>&1 || RET=$?; echo; echo "Exited with return status $RET"; } >> ../logs/$REV.log
+            { timeout $(get_from_config timeout ..) $(get_from_config command ..) 2>&1 || RET=$?; echo; echo "Exited with return status $RET"; } >> ../logs/$REV.log
             echo "Finished at $(date)" >> ../logs/$REV.log
             sed -i '$ d' ../logs/results
             RETVAL=$(tail -2 ../logs/$REV.log | head -1 | cut -d' ' -f 5)
@@ -107,7 +163,7 @@ main() {
                 echo "$(date) $REV suceeded" >> ../logs/results
             else
                 echo "$(date) $REV failed" >> ../logs/results
-                { echo "From $(cat ../conf/base)/$REV.log :"; echo; tail -n $(cat ../conf/tail) ../logs/$REV.log; } | mail -s "$(basename $(cat ../conf/repo | sed 's/\.git$//')) failed build $(echo $REV | sed -r 's/^(......).*-(.+)/\1-\2/')" -c "$(git show | awk '/^Author: /{sub("Author: ", "", $0); print;}' | tail -1)" $(cat ../conf/mail)
+                { echo "From $(get_from_config base ..)/$REV.log :"; echo; tail -n $(get_from_config tail ..) ../logs/$REV.log; } | mail -s "$(basename $(get_from_config repo .. | sed 's/\.git$//')) failed build $(echo $REV | sed -r 's/^(......).*-(.+)/\1-\2/')" -c "$(git show | awk '/^Author: /{sub("Author: ", "", $0); print;}' | tail -1)" $(get_from_config mail ..)
             fi
             cd ..
         fi
@@ -119,7 +175,7 @@ main() {
 }
 
 cd `dirname $(readlink -f $0)`
-mkdir -p logs tmp conf work
+mkdir -p logs tmp work
 case "$1" in
     start)
         main
@@ -166,22 +222,31 @@ case "$1" in
         fi
         git clone $REPO work
         touch tmp/trigger
-        if test -d work/continuation-config; then
+        if [ -d work/continuation-config -a ! -f work/continuation.yaml ]; then
             if [ -f conf ]; then
-                rm conf
-            fi
-            if [ -d conf ]; then
-                rmdir conf
+                mv conf conf.internal.bak
             fi
             ln -s work/continuation-config conf
-            if [ -f conf/setup ]; then
+            migrate
+            if [ -f conf.internal.bak ]; then
+                mv conf.internal.bak conf
+            fi
+        elif [ -f work/continuation.yaml ]; then
+            if [ -f continuation.yaml ]; then
+                rm continuation.yaml
+            fi
+            ln -s work/continuation.yaml
+            if [ -n "$(get_from_config setup)" ]; then
+                F=$(mktemp)
+                get_from_config setup > $F
                 cd work
-                . ../conf/setup
+                . $F
+                rm $F
                 cd ..
             fi
             echo "Sucessful"
         else
-            echo "that repository doesn't have a continuation-config directory...please manually configure continuation"
+            echo "that repository doesn't have a continuation.yaml file...please manually configure continuation"
             exit 1
         fi
         ;;
@@ -203,7 +268,10 @@ as the name is changed.
 EOF
         ;;
     help)
-        echo "Valid commands: start, restart, stop, kill, trigger, version, license, help, checkout"
+        echo "Valid commands: start, restart, stop, kill, trigger, version, license, help, checkout, migrate"
+        ;;
+    migrate)
+        migrate
         ;;
     *)
         echo "Unknown command $1 ... try help" >/dev/stderr

@@ -2,8 +2,7 @@
 
 # TODO:
 # * wrt CCing, committer vs author
-# * add defaults for tail and wait, making them optional, and make
-#   timeout optional (defaulting to no timeout)
+# * add defaults for tail and wait, making them optional
 # * add documentation
 
 # Changelog:
@@ -22,6 +21,7 @@
 # * automatically clean up old "building.." states in the log,
 #   replacing them with "unknown" states
 # * on triggered builds (well, most of them), don't CC the author
+# * make the timeout option optional, defaulting to no timeout
 
 migrate(){
     if [ -d conf -a ! -f continuation.yaml ]; then
@@ -86,7 +86,7 @@ main() {
         rm tmp/die
     fi
     migrate
-    for i in repo command timeout mail tail base wait; do
+    for i in repo command mail tail base wait; do
         if [ -z "$(get_from_config $i)" ]; then
             echo "ERROR: Required config file setting '$i' is missing."
             exit 1
@@ -162,7 +162,15 @@ main() {
             echo "$(date) $REV building.." >> ../logs/results
             echo "Starting at $(date)" > ../logs/$REV.log
             RET=0
-            { timeout $(get_from_config timeout ..) $(get_from_config command ..) 2>&1 || RET=$?; echo; echo "Exited with return status $RET"; } >> ../logs/$REV.log
+            {
+                if [ -n "$(get_from_config timeout ..)" ]; then
+                    timeout $(get_from_config timeout ..) $(get_from_config command ..) 2>&1 || RET=$?
+                else
+                    $(get_from_config command ..) 2>&1 || RET=$?
+                fi
+                echo
+                echo "Exited with return status $RET"
+            } >> ../logs/$REV.log
             echo "Finished at $(date)" >> ../logs/$REV.log
             sed -i '$ d' ../logs/results
             RETVAL=$(tail -2 ../logs/$REV.log | head -1 | cut -d' ' -f 5)

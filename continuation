@@ -1,9 +1,5 @@
 #!/bin/sh
 
-# TODO:
-# * send an email when the previous build(s) failed but this one
-#   suceeded (fixing the problem)
-
 # Changelog:
 # version 0.01
 # * initial version
@@ -22,6 +18,7 @@
 # * on triggered builds (well, most of them), don't CC the author
 # * make the timeout option optional, defaulting to no timeout
 # * make the tail and wait options optional, with reasonable defaults
+# * send an email when the new version fixes the failing build
 
 migrate(){
     if [ -d conf -a ! -f continuation.yaml ]; then
@@ -178,19 +175,22 @@ main() {
             echo "Finished at $(date)" >> ../logs/$REV.log
             sed -i '$ d' ../logs/results
             RETVAL=$(tail -2 ../logs/$REV.log | head -1 | cut -d' ' -f 5)
+            if [ "$NUM" = "1" ]; then
+                CC_OPTS="-c \"$(git show | awk '/^Author: /{sub("Author: ", "", $0); print;}' | tail -1)\""
+            else
+                CC_OPTS=""
+            fi
+            TAIL_LENGTH=50
+            if [ -n "$(get_from_config tail ..)" ]; then
+                TAIL_LENGTH="$(get_from_config tail ..)"
+            fi
             if [ "$RETVAL" = "0" ]; then
                 echo "$(date) $REV suceeded" >> ../logs/results
+                if [ "$(cat ../logs/results | wc -l)" != "1" -a "$(tail -n 2 ../logs/results | head -1 | awk '{print $8}')" = "failed" ]; then
+                    { echo "From $(get_from_config base ..)/$REV.log :"; echo; tail -n $TAIL_LENGTH ../logs/$REV.log; } | mail -s "$(basename $(get_from_config repo .. | sed 's/\.git$//')) fixed build $(echo $REV | sed -r 's/^(......).*-(.+)/\1-\2/')" $CC_OPTS $(get_from_config mail ..)
+                fi
             else
                 echo "$(date) $REV failed" >> ../logs/results
-                if [ "$NUM" = "1" ]; then
-                    CC_OPTS="-c \"$(git show | awk '/^Author: /{sub("Author: ", "", $0); print;}' | tail -1)\""
-                else
-                    CC_OPTS=""
-                fi
-                TAIL_LENGTH=50
-                if [ -n "$(get_from_config tail ..)" ]; then
-                    TAIL_LENGTH="$(get_from_config tail ..)"
-                fi
                 { echo "From $(get_from_config base ..)/$REV.log :"; echo; tail -n $TAIL_LENGTH ../logs/$REV.log; } | mail -s "$(basename $(get_from_config repo .. | sed 's/\.git$//')) failed build $(echo $REV | sed -r 's/^(......).*-(.+)/\1-\2/')" $CC_OPTS $(get_from_config mail ..)
             fi
             cd ..

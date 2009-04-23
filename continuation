@@ -1,5 +1,9 @@
 #!/bin/sh
 
+# TODO:
+# * send an email when the previous build(s) failed but this one
+#   suceeded (fixing the problem)
+
 # Changelog:
 # version 0.01
 # * initial version

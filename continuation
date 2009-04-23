@@ -3,7 +3,6 @@
 # TODO:
 # don't cc on -1+ builds
 # on startup clean up old building entries in the results log, saying "unknown" or "died" or something
-# consider removing the conf dir entirely and just use work/continuation-config
 
 # Changelog:
 # version 0.01

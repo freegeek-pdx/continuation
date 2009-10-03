@@ -19,6 +19,8 @@
 # * make the timeout option optional, defaulting to no timeout
 # * make the tail and wait options optional, with reasonable defaults
 # * send an email when the new version fixes the failing build
+# version 0.04
+# * make it actually work
 
 migrate(){
     if [ -d conf -a ! -f continuation.yaml ]; then
@@ -65,7 +67,7 @@ get_from_config(){
     else
         DIR="./"
     fi
-    echo ${DIR}continuation.yaml | perl -Mstrict -MYAML -e 'my ($t, @d); push @d, $t while(defined ($t = <STDIN>)); $t = join("\n", @d); my ($hashref, undef, undef) = Load($t); print (ref(%{$hashref}->{$ARGV[0]}) eq "ARRAY" ? join("\n", @{%{$hashref}->{$ARGV[0]}}) : %{$hashref}->{$ARGV[0]}) . "\n";' "$1"
+    cat ${DIR}continuation.yaml | perl -Mstrict -MYAML -e 'my ($t, @d); push @d, $t while(defined ($t = <STDIN>)); $t = join("\n", @d); my ($hashref, undef, undef) = Load($t); print (ref(%{$hashref}->{$ARGV[0]}) eq "ARRAY" ? join("\n", @{%{$hashref}->{$ARGV[0]}}) : %{$hashref}->{$ARGV[0]}) . "\n";' "$1"
 }
 
 main() {
